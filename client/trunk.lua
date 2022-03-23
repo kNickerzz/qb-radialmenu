@@ -1,30 +1,55 @@
 local inTrunk = false
 local isKidnapped = false
 local isKidnapping = false
-local cam = nil
+
 local disabledTrunk = {
-    [`penetrator`] = "penetrator",
-    [`vacca`] = "vacca",
-    [`monroe`] = "monroe",
-    [`turismor`] = "turismor",
-    [`osiris`] = "osiris",
-    [`comet`] = "comet",
-    [`ardent`] = "ardent",
-    [`jester`] = "jester",
-    [`nero`] = "nero",
-    [`nero2`] = "nero2",
-    [`vagner`] = "vagner",
-    [`infernus`] = "infernus",
-    [`zentorno`] = "zentorno",
-    [`comet2`] = "comet2",
-    [`comet3`] = "comet3",
-    [`comet4`] = "comet4",
-    [`bullet`] = "bullet",
+    [1] = "penetrator",
+    [2] = "vacca",
+    [3] = "monroe",
+    [4] = "turismor",
+    [5] = "osiris",
+    [6] = "comet",
+    [7] = "ardent",
+    [8] = "jester",
+    [9] = "nero",
+    [10] = "nero2",
+    [11] = "vagner",
+    [12] = "infernus",
+    [13] = "zentorno",
+    [14] = "comet2",
+    [15] = "comet3",
+    [16] = "comet4",
+    [17] = "lp700r",
+    [18] = "r8ppi",
+    [19] = "911turbos",
+    [20] = "rx7rb",
+    [21] = "fnfrx7",
+    [22] = "delsoleg",
+    [23] = "s15rb",
+    [24] = "gtr",
+    [25] = "fnf4r34",
+    [26] = "ap2",
+    [27] = "bullet",
 }
 
--- Functions
+function loadDict(dict)
+    while not HasAnimDictLoaded(dict) do Wait(0) RequestAnimDict(dict) end
+end
 
-local function DrawText3Ds(x, y, z, text)
+function disabledCarCheck(veh)
+    for i=1,#disabledTrunk do
+        if GetEntityModel(veh) == GetHashKey(disabledTrunk[i]) then
+            return true
+        end
+    end
+    return false
+end
+
+RegisterNetEvent('qb-kidnapping:client:SetKidnapping', function(bool)
+    isKidnapping = bool
+end)
+
+function DrawText3Ds(x, y, z, text)
 	SetTextScale(0.35, 0.35)
     SetTextFont(4)
     SetTextProportional(1)
@@ -39,7 +64,9 @@ local function DrawText3Ds(x, y, z, text)
     ClearDrawOrigin()
 end
 
-local function getNearestVeh()
+local cam = nil
+
+function getNearestVeh()
     local pos = GetEntityCoords(PlayerPedId())
     local entityWorld = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 20.0, 0.0)
 
@@ -48,10 +75,13 @@ local function getNearestVeh()
     return vehicleHandle
 end
 
-local function TrunkCam(bool)
+function TrunkCam(bool)
+    local ped = PlayerPedId()
     local vehicle = GetEntityAttachedTo(PlayerPedId())
     local drawPos = GetOffsetFromEntityInWorldCoords(vehicle, 0, -5.5, 0)
+
     local vehHeading = GetEntityHeading(vehicle)
+
     if bool then
         RenderScriptCams(false, false, 0, 1, 0)
         DestroyCam(cam, false)
@@ -69,15 +99,29 @@ local function TrunkCam(bool)
     end
 end
 
--- Events
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        local vehicle = GetEntityAttachedTo(PlayerPedId())
+        local drawPos = GetOffsetFromEntityInWorldCoords(vehicle, 0, -5.5, 0)
 
-RegisterNetEvent('qb-kidnapping:client:SetKidnapping', function(bool)
-    isKidnapping = bool
+        local vehHeading = GetEntityHeading(vehicle)
+
+        if cam ~= nil then
+            SetCamRot(cam, -2.5, 0.0, vehHeading, 0.0)
+            SetCamCoord(cam, drawPos.x, drawPos.y, drawPos.z + 2)
+        else
+            Wait(1000)
+        end
+
+        Wait(1)
+    end
 end)
 
 RegisterNetEvent('qb-trunk:client:KidnapTrunk', function()
-    local closestPlayer, distance = QBCore.Functions.GetClosestPlayer()
-    if distance ~= -1 and distance < 2 then
+    closestPlayer, distance = QBCore.Functions.GetClosestPlayer()
+    local closestPlayerPed = GetPlayerPed(closestPlayer)
+    if (distance ~= -1 and distance < 2) then
         if isKidnapping then
             local closestVehicle = getNearestVeh()
             if closestVehicle ~= 0 then
@@ -87,7 +131,7 @@ RegisterNetEvent('qb-trunk:client:KidnapTrunk', function()
                 TriggerServerEvent("qb-trunk:server:KidnapTrunk", GetPlayerServerId(closestPlayer), closestVehicle)
             end
         else
-            QBCore.Functions.Notify(Lang:t("error.not_kidnapped"), 'error')
+            QBCore.Functions.Notify('You did not kipnap this person!', 'error')
         end
     end
 end)
@@ -97,37 +141,39 @@ RegisterNetEvent('qb-trunk:client:KidnapGetIn', function(veh)
     local closestVehicle = veh
     local vehClass = GetVehicleClass(closestVehicle)
     local plate = QBCore.Functions.GetPlate(closestVehicle)
+
     if Config.TrunkClasses[vehClass].allowed then
         QBCore.Functions.TriggerCallback('qb-trunk:server:getTrunkBusy', function(isBusy)
-            if not disabledTrunk[GetEntityModel(closestVehicle)] then
+            if not disabledCarCheck(closestVehicle) then
                 if not inTrunk then
                     if not isBusy then
                         if not isKidnapped then
-                            if GetVehicleDoorAngleRatio(closestVehicle, 5) > 0 then
+                            -- if GetVehicleDoorAngleRatio(closestVehicle, 5) > 0 then
                                 offset = {
                                     x = Config.TrunkClasses[vehClass].x,
                                     y = Config.TrunkClasses[vehClass].y,
                                     z = Config.TrunkClasses[vehClass].z,
                                 }
-                                RequestAnimDict("fin_ext_p1-7")
-                                while not HasAnimDictLoaded("fin_ext_p1-7") do
-                                    Wait(0)
-                                end
+                                loadDict("fin_ext_p1-7")
                                 TaskPlayAnim(ped, "fin_ext_p1-7", "cs_devin_dual-7", 8.0, 8.0, -1, 1, 999.0, 0, 0, 0)
+                                -- AttachEntityToEntity(ped, closestVehicle, -1, 0.0, -2.0, 0.5, 0.0, 0.0, 0.0, false, false, false, false, 20, true)
                                 AttachEntityToEntity(ped, closestVehicle, 0, offset.x, offset.y, offset.z, 0, 0, 40.0, 1, 1, 1, 1, 1, 1)
                                 TriggerServerEvent('qb-trunk:server:setTrunkBusy', plate, true)
                                 inTrunk = true
                                 Wait(500)
                                 SetVehicleDoorShut(closestVehicle, 5, false)
-                                QBCore.Functions.Notify(Lang:t("success.entered_trunk"), 'success', 4000)
+                                QBCore.Functions.Notify('You\'re in the trunk.', 'success', 4000)
                                 TrunkCam(true)
+
                                 isKidnapped = true
-                            else
-                                QBCore.Functions.Notify(Lang:t("error.trunk_closed"), 'error', 2500)
-                            end
+                            -- else
+                                -- QBCore.Functions.Notify('Is the trunk closed?', 'error', 2500)
+                            -- end
                         else
-                            local vehicle = GetEntityAttachedTo(ped)
-                            plate = QBCore.Functions.GetPlate(vehicle)
+                            local ped = PlayerPedId()
+                            local vehicle = GetEntityAttachedTo(PlayerPedId())
+                            local plate = QBCore.Functions.GetPlate(vehicle)
+
                             if GetVehicleDoorAngleRatio(vehicle, 5) > 0 then
                                 local vehCoords = GetOffsetFromEntityInWorldCoords(vehicle, 0, -5.0, 0)
                                 DetachEntity(ped, true, true)
@@ -138,33 +184,34 @@ RegisterNetEvent('qb-trunk:client:KidnapGetIn', function(veh)
                                 SetEntityCollision(PlayerPedId(), true, true)
                                 TrunkCam(false)
                             else
-                                QBCore.Functions.Notify(Lang:t("error.trunk_closed"), 'error', 2500)
+                                QBCore.Functions.Notify('The trunk is closed?', 'error', 2500)
                             end
                         end
                     else
-                        QBCore.Functions.Notify(Lang:t("error.someone_in_trunk"), 'error', 2500)
+                        QBCore.Functions.Notify('Anyone in there yet?', 'error', 2500)
                     end
                 else
-                    QBCore.Functions.Notify(Lang:t("error.already_in_trunk"), 'error', 2500)
+                    QBCore.Functions.Notify('Your already in the trunk', 'error', 2500)
                 end
             else
-                QBCore.Functions.Notify(Lang:t("error.cant_enter_trunk"), 'error', 2500)
+                QBCore.Functions.Notify('You cant get in this trunk..', 'error', 2500)
             end
         end, plate)
     else
-        QBCore.Functions.Notify(Lang:t("error.cant_enter_trunk"), 'error', 2500)
+        QBCore.Functions.Notify('You cant get in this trunk..', 'error', 2500)
     end
 end)
 
-RegisterNetEvent('qb-trunk:client:GetIn', function()
+RegisterNetEvent('qb-trunk:client:GetIn', function(isKidnapped)
     local ped = PlayerPedId()
     local closestVehicle = getNearestVeh()
+
     if closestVehicle ~= 0 then
         local vehClass = GetVehicleClass(closestVehicle)
         local plate = QBCore.Functions.GetPlate(closestVehicle)
         if Config.TrunkClasses[vehClass].allowed then
             QBCore.Functions.TriggerCallback('qb-trunk:server:getTrunkBusy', function(isBusy)
-                if not disabledTrunk[GetEntityModel(closestVehicle)] then
+                if not disabledCarCheck(closestVehicle) then
                     if not inTrunk then
                         if not isBusy then
                             if GetVehicleDoorAngleRatio(closestVehicle, 5) > 0 then
@@ -173,68 +220,50 @@ RegisterNetEvent('qb-trunk:client:GetIn', function()
                                     y = Config.TrunkClasses[vehClass].y,
                                     z = Config.TrunkClasses[vehClass].z,
                                 }
-                                RequestAnimDict("fin_ext_p1-7")
-                                while not HasAnimDictLoaded("fin_ext_p1-7") do
-                                    Wait(0)
-                                end
+                                loadDict("fin_ext_p1-7")
                                 TaskPlayAnim(ped, "fin_ext_p1-7", "cs_devin_dual-7", 8.0, 8.0, -1, 1, 999.0, 0, 0, 0)
+                                -- AttachEntityToEntity(ped, closestVehicle, -1, 0.0, -2.0, 0.5, 0.0, 0.0, 0.0, false, false, false, false, 20, true)
                                 AttachEntityToEntity(ped, closestVehicle, 0, offset.x, offset.y, offset.z, 0, 0, 40.0, 1, 1, 1, 1, 1, 1)
                                 TriggerServerEvent('qb-trunk:server:setTrunkBusy', plate, true)
                                 inTrunk = true
                                 Wait(500)
                                 SetVehicleDoorShut(closestVehicle, 5, false)
-                                QBCore.Functions.Notify(Lang:t("success.entered_trunk"), 'success', 4000)
+                                QBCore.Functions.Notify('You are already in the trunk.', 'Goodluck', 4000)
                                 TrunkCam(true)
                             else
-                                QBCore.Functions.Notify(Lang:t("error.trunk_closed"), 'error', 2500)
+                                QBCore.Functions.Notify('Is the trunk closed?', 'error', 2500)
                             end
                         else
-                            QBCore.Functions.Notify(Lang:t("error.someone_in_trunk"), 'error', 2500)
+                            QBCore.Functions.Notify('Looks like there is some 1 in there?', 'error', 2500)
                         end
                     else
-                        QBCore.Functions.Notify(Lang:t("error.already_in_trunk"), 'error', 2500)
+                        QBCore.Functions.Notify('You are already in the trunk', 'error', 2500)
                     end
                 else
-                    QBCore.Functions.Notify(Lang:t("error.cant_enter_trunk"), 'error', 2500)
+                    QBCore.Functions.Notify('You cant get in this trunk..', 'error', 2500)
                 end
             end, plate)
         else
-            QBCore.Functions.Notify(Lang:t("error.cant_enter_trunk"), 'error', 2500)
+            QBCore.Functions.Notify('You cant get in this trunk..', 'error', 2500)
         end
     else
-        QBCore.Functions.Notify(Lang:t("error.no_vehicle_found"), 'error', 2500)
-    end
-end)
-
--- Threads
-
-CreateThread(function()
-    while true do
-        local sleep = 1000
-        local vehicle = GetEntityAttachedTo(PlayerPedId())
-        local drawPos = GetOffsetFromEntityInWorldCoords(vehicle, 0, -5.5, 0)
-        local vehHeading = GetEntityHeading(vehicle)
-        if cam then
-            sleep = 0
-            SetCamRot(cam, -2.5, 0.0, vehHeading, 0.0)
-            SetCamCoord(cam, drawPos.x, drawPos.y, drawPos.z + 2)
-        end
-        Wait(sleep)
+        QBCore.Functions.Notify('There is no vehicle to see.', 'error', 2500)
     end
 end)
 
 CreateThread(function()
     while true do
-        local sleep = 1000
+
         if inTrunk then
             if not isKidnapped then
                 local ped = PlayerPedId()
-                local vehicle = GetEntityAttachedTo(ped)
+                local vehicle = GetEntityAttachedTo(PlayerPedId())
                 local drawPos = GetOffsetFromEntityInWorldCoords(vehicle, 0, -2.5, 0)
                 local plate = QBCore.Functions.GetPlate(vehicle)
+
                 if DoesEntityExist(vehicle) then
-                    sleep = 0
-                    DrawText3Ds(drawPos.x, drawPos.y, drawPos.z + 0.75, Lang:t("general.get_out_trunk_button"))
+                    DrawText3Ds(drawPos.x, drawPos.y, drawPos.z + 0.75, '[E] To get out of the trunk')
+
                     if IsControlJustPressed(0, 38) then
                         if GetVehicleDoorAngleRatio(vehicle, 5) > 0 then
                             local vehCoords = GetOffsetFromEntityInWorldCoords(vehicle, 0, -5.0, 0)
@@ -243,39 +272,40 @@ CreateThread(function()
                             inTrunk = false
                             TriggerServerEvent('qb-trunk:server:setTrunkBusy', plate, false)
                             SetEntityCoords(ped, vehCoords.x, vehCoords.y, vehCoords.z)
-                            SetEntityCollision(ped, true, true)
+                            SetEntityCollision(PlayerPedId(), true, true)
                             TrunkCam(false)
                         else
-                            QBCore.Functions.Notify(Lang:t("error.trunk_closed"), 'error', 2500)
+                            QBCore.Functions.Notify('Is the trunk closed?', 'error', 2500)
                         end
-                        sleep = 100
                     end
+
                     if GetVehicleDoorAngleRatio(vehicle, 5) > 0 then
-                        sleep = 0
-                        DrawText3Ds(drawPos.x, drawPos.y, drawPos.z + 0.5, Lang:t("general.close_trunk_button"))
+                        DrawText3Ds(drawPos.x, drawPos.y, drawPos.z + 0.5, '[G] To close the trunk')
                         if IsControlJustPressed(0, 47) then
                             if not IsVehicleSeatFree(vehicle, -1) then
                                 TriggerServerEvent('qb-radialmenu:trunk:server:Door', false, plate, 5)
                             else
                                 SetVehicleDoorShut(vehicle, 5, false)
                             end
-                            sleep = 100
                         end
                     else
-                        sleep = 0
-                        DrawText3Ds(drawPos.x, drawPos.y, drawPos.z + 0.5, Lang:t("general.open_trunk_button"))
+                        DrawText3Ds(drawPos.x, drawPos.y, drawPos.z + 0.5, '[G] To open the trunk')
                         if IsControlJustPressed(0, 47) then
                             if not IsVehicleSeatFree(vehicle, -1) then
                                 TriggerServerEvent('qb-radialmenu:trunk:server:Door', true, plate, 5)
                             else
                                 SetVehicleDoorOpen(vehicle, 5, false, false)
                             end
-                            sleep = 100
                         end
                     end
                 end
             end
         end
-        Wait(sleep)
+
+        if not inTrunk then
+            Wait(1000)
+        end
+
+        Wait(3)
     end
 end)

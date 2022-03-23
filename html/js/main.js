@@ -3,15 +3,21 @@
 var QBRadialMenu = null;
 
 $(document).ready(function(){
+
     window.addEventListener('message', function(event){
-        switch (event.data.action) {
-            case "ui":
-                if (event.data.radial) {
-                    createMenu(event.data.items)
-                    QBRadialMenu.open();
-                } else {
-                    QBRadialMenu.close();
-                }
+        var eventData = event.data;
+
+        if (eventData.action == "ui") {
+            if (eventData.radial) {
+                createMenu(eventData.items)
+                QBRadialMenu.open();
+            } else {
+                QBRadialMenu.close();
+            }
+        }
+
+        if (eventData.action == "setPlayers") {
+            createMenu(eventData.items)
         }
     });
 });
@@ -26,10 +32,17 @@ function createMenu(items) {
                 QBRadialMenu.close();
             }
             
-            if (item.items == null && item.shouldClose != null) {
-                $.post('https://qb-radialmenu/selectItem', JSON.stringify({
-                    itemData: item
-                }))
+            if (item.event !== null) {
+                if (item.data !== null) {
+                    $.post('https://qb-radialmenu/selectItem', JSON.stringify({
+                        itemData: item,
+                        data: item.data
+                    }))
+                } else {
+                    $.post('https://qb-radialmenu/selectItem', JSON.stringify({
+                        itemData: item
+                    }))
+                }
             }
         }
     });
@@ -38,7 +51,7 @@ function createMenu(items) {
 $(document).on('keydown', function(e) {
     switch(e.key) {
         case "Escape":
-        case "F1":
+        case "f1":
             QBRadialMenu.close();
             break;
     }
